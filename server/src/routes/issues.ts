@@ -1022,6 +1022,26 @@ export function issueRoutes(db: Db, storage: StorageService) {
         },
       });
 
+      // Canonical plugin event action used by PLUGIN_EVENT_TYPES.
+      await logActivity(db, {
+        companyId: issue.companyId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        agentId: actor.agentId,
+        runId: actor.runId,
+        action: "issue.comment.created",
+        entityType: "issue",
+        entityId: issue.id,
+        details: {
+          commentId: comment.id,
+          bodySnippet: comment.body.slice(0, 120),
+          identifier: issue.identifier,
+          issueTitle: issue.title,
+          ...(reopened ? { reopened: true, reopenedFrom: reopenFromStatus, source: "comment" } : {}),
+          ...(hasFieldChanges ? { updated: true } : {}),
+        },
+      });
+
     }
 
     const assigneeChanged = assigneeWillChange;
@@ -1307,10 +1327,45 @@ export function issueRoutes(db: Db, storage: StorageService) {
     const reopenRequested = req.body.reopen === true;
     const interruptRequested = req.body.interrupt === true;
     const isClosed = issue.status === "done" || issue.status === "cancelled";
+    const isInReview = issue.status === "in_review";
+    // When a non-agent actor (e.g. board user) comments on an in_review issue,
+    // auto-transition back to in_progress so the assigned agent wakes to actionable work.
+    const approvedViaComment =
+      isInReview &&
+      actor.actorType !== "agent" &&
+      issue.assigneeAgentId !== null;
     let reopened = false;
     let reopenFromStatus: string | null = null;
+    let activatedFromReview = false;
     let interruptedRunId: string | null = null;
     let currentIssue = issue;
+
+    if (approvedViaComment) {
+      const activatedIssue = await svc.update(id, { status: "in_progress" });
+      if (!activatedIssue) {
+        res.status(404).json({ error: "Issue not found" });
+        return;
+      }
+      activatedFromReview = true;
+      currentIssue = activatedIssue;
+
+      await logActivity(db, {
+        companyId: currentIssue.companyId,
+        actorType: actor.actorType,
+        actorId: actor.actorId,
+        agentId: actor.agentId,
+        runId: actor.runId,
+        action: "issue.updated",
+        entityType: "issue",
+        entityId: currentIssue.id,
+        details: {
+          status: "in_progress",
+          activatedFromReview: true,
+          source: "comment",
+          identifier: currentIssue.identifier,
+        },
+      });
+    }
 
     if (reopenRequested && isClosed) {
       const reopenedIssue = await svc.update(id, { status: "todo" });
@@ -1416,6 +1471,26 @@ export function issueRoutes(db: Db, storage: StorageService) {
       },
     });
 
+    // Canonical plugin event action used by PLUGIN_EVENT_TYPES.
+    await logActivity(db, {
+      companyId: currentIssue.companyId,
+      actorType: actor.actorType,
+      actorId: actor.actorId,
+      agentId: actor.agentId,
+      runId: actor.runId,
+      action: "issue.comment.created",
+      entityType: "issue",
+      entityId: currentIssue.id,
+      details: {
+        commentId: comment.id,
+        bodySnippet: comment.body.slice(0, 120),
+        identifier: currentIssue.identifier,
+        issueTitle: currentIssue.title,
+        ...(reopened ? { reopened: true, reopenedFrom: reopenFromStatus, source: "comment" } : {}),
+        ...(interruptedRunId ? { interruptedRunId } : {}),
+      },
+    });
+
     // Merge all wakeups from this comment into one enqueue per agent to avoid duplicate runs.
     void (async () => {
       const wakeups = new Map<string, Parameters<typeof heartbeat.wakeup>[1]>();
@@ -1423,8 +1498,30 @@ export function issueRoutes(db: Db, storage: StorageService) {
       const actorIsAgent = actor.actorType === "agent";
       const selfComment = actorIsAgent && actor.actorId === assigneeId;
       const skipWake = selfComment || isClosed;
-      if (assigneeId && (reopened || !skipWake)) {
-        if (reopened) {
+      if (assigneeId && (reopened || activatedFromReview || !skipWake)) {
+        if (activatedFromReview) {
+          wakeups.set(assigneeId, {
+            source: "automation",
+            triggerDetail: "system",
+            reason: "issue_approved_via_comment",
+            payload: {
+              issueId: currentIssue.id,
+              commentId: comment.id,
+              mutation: "comment",
+              activatedFromReview: true,
+            },
+            requestedByActorType: actor.actorType,
+            requestedByActorId: actor.actorId,
+            contextSnapshot: {
+              issueId: currentIssue.id,
+              taskId: currentIssue.id,
+              commentId: comment.id,
+              source: "issue.comment.approved",
+              wakeReason: "issue_approved_via_comment",
+              activatedFromReview: true,
+            },
+          });
+        } else if (reopened) {
           wakeups.set(assigneeId, {
             source: "automation",
             triggerDetail: "system",
