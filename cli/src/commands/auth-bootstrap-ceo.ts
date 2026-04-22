@@ -3,6 +3,7 @@ import * as p from "@clack/prompts";
 import pc from "picocolors";
 import { and, eq, gt, isNull } from "drizzle-orm";
 import { createDb, instanceUserRoles, invites } from "@paperclipai/db";
+import { inferBindModeFromHost } from "@paperclipai/shared";
 import { loadPaperclipEnvFile } from "../config/env.js";
 import { readConfig, resolveConfigPath } from "../config/store.js";
 
@@ -40,10 +41,22 @@ function resolveBaseUrl(configPath?: string, explicitBaseUrl?: string) {
   if (config?.auth.baseUrlMode === "explicit" && config.auth.publicBaseUrl) {
     return config.auth.publicBaseUrl.replace(/\/+$/, "");
   }
-  const host = config?.server.host ?? "localhost";
+  const bind = config?.server.bind ?? inferBindModeFromHost(config?.server.host);
+  const host =
+    bind === "custom"
+      ? config?.server.customBindHost ?? config?.server.host ?? "localhost"
+      : config?.server.host ?? "localhost";
   const port = config?.server.port ?? 3100;
-  const publicHost = host === "0.0.0.0" ? "localhost" : host;
+  const publicHost = host === "0.0.0.0" || bind === "lan" ? "localhost" : host;
   return `http://${publicHost}:${port}`;
+}
+
+function resolveDeploymentMode(
+  config: ReturnType<typeof readConfig>,
+): "authenticated" | "local_trusted" | null {
+  const fromEnv = process.env.PAPERCLIP_DEPLOYMENT_MODE?.trim();
+  if (fromEnv === "authenticated" || fromEnv === "local_trusted") return fromEnv;
+  return config?.server.deploymentMode ?? null;
 }
 
 export async function bootstrapCeoInvite(opts: {
@@ -56,12 +69,13 @@ export async function bootstrapCeoInvite(opts: {
   const configPath = resolveConfigPath(opts.config);
   loadPaperclipEnvFile(configPath);
   const config = readConfig(configPath);
-  if (!config) {
+  const deploymentMode = resolveDeploymentMode(config);
+  if (!config && !deploymentMode) {
     p.log.error(`No config found at ${configPath}. Run ${pc.cyan("paperclip onboard")} first.`);
     return;
   }
 
-  if (config.server.deploymentMode !== "authenticated") {
+  if (deploymentMode !== "authenticated") {
     p.log.info("Deployment mode is local_trusted. Bootstrap CEO invite is only required for authenticated mode.");
     return;
   }

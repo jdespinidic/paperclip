@@ -19,7 +19,7 @@ These almost always get merged quickly when they're clean.
 
 ### Path 2: Bigger or Impactful Changes
 
-- **First** talk about it in Discord → #dev channel  
+- **First** open an issue or discussion on [GitHub](https://github.com/zesthq/bizbox/issues)  
   → Describe what you're trying to solve  
   → Share rough ideas / approach
 - Once there's rough agreement, build it
@@ -37,7 +37,11 @@ PRs that follow this path are **much** more likely to be accepted, even when the
 
 ### Use the PR Template
 
-Every pull request **must** follow the PR template at [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md). If you create a PR via the GitHub API or other tooling that bypasses the template, copy its contents into your PR description manually. The template includes required sections: Thinking Path, What Changed, Verification, Risks, and a Checklist.
+Every pull request **must** follow the PR template at [`.github/PULL_REQUEST_TEMPLATE.md`](.github/PULL_REQUEST_TEMPLATE.md). If you create a PR via the GitHub API or other tooling that bypasses the template, copy its contents into your PR description manually. The template includes required sections: Thinking Path, What Changed, Verification, Risks, Model Used, and a Checklist.
+
+### Model Used (Required)
+
+Every PR must include a **Model Used** section specifying which AI model produced or assisted with the change. Include the provider, exact model ID/version, context window size, and any relevant capability details (e.g., reasoning mode, tool use). If no AI was used, write "None — human-authored". This applies to all contributors — human and AI alike.
 
 ### Tests Must Pass
 
@@ -47,12 +51,28 @@ All tests must pass before a PR can be merged. Run them locally first and verify
 
 We use [Greptile](https://greptile.com) for automated code review. Your PR must achieve a **5/5 Greptile score** with **all Greptile comments addressed** before it can be merged. If Greptile leaves comments, fix or respond to each one and request a re-review.
 
+## Feature Contributions
+
+We actively manage the core Bizbox feature roadmap.
+
+Uncoordinated feature PRs against the core product may be closed, even when the implementation is thoughtful and high quality. That is about roadmap ownership, product coherence, and long-term maintenance commitment, not a judgment about the effort.
+
+If you want to contribute a feature:
+
+- Check [ROADMAP.md](ROADMAP.md) first
+- Open an issue or discussion on [GitHub](https://github.com/zesthq/bizbox/issues) before writing code
+- If the idea fits as an extension, prefer building it with the [plugin system](doc/plugins/PLUGIN_SPEC.md)
+- If you want to show a possible direction, reference implementations are welcome as feedback, but they generally will not be merged directly into core
+
+Bugs, docs improvements, and small targeted improvements are still the easiest path to getting merged, and we really do appreciate them.
+
 ## General Rules (both paths)
 
 - Write clear commit messages
 - Keep PR title + description meaningful
 - One PR = one logical change (unless it's a small related group)
 - Run tests locally first
+- For the repo-native Codex contributor workflow, follow `doc/CODEX-WORKFLOW.md` in addition to `AGENTS.md`
 - Be kind in discussions 😄
 
 ## Writing a Good PR message
@@ -61,16 +81,16 @@ Your PR description must follow the [PR template](.github/PULL_REQUEST_TEMPLATE.
 
 ### Thinking Path Example 1:
 
-> - Paperclip orchestrates ai-agents for zero-human companies
+> - Bizbox orchestrates ai-agents for zero-human companies
 > - There are many types of adapters for each LLM model provider
 > - But LLM's have a context limit and not all agents can automatically compact their context
 > - So we need to have an adapter-specific configuration for which adapters can and cannot automatically compact their context
-> - This pull request adds per-adapter configuration of compaction, either auto or paperclip managed
-> - That way we can get optimal performance from any adapter/provider in Paperclip
+> - This pull request adds per-adapter configuration of compaction, either auto or bizbox managed
+> - That way we can get optimal performance from any adapter/provider in Bizbox
 
 ### Thinking Path Example 2:
 
-> - Paperclip orchestrates ai-agents for zero-human companies
+> - Bizbox orchestrates ai-agents for zero-human companies
 > - But humans want to watch the agents and oversee their work
 > - Human users also operate in teams and so they need their own logins, profiles, views etc.
 > - So we have a multi-user system for humans
@@ -85,6 +105,6 @@ This should include details about what you did, why you did it, why it matters &
 
 Please include screenshots if possible if you have a visible change. (use something like the [agent-browser skill](https://github.com/vercel-labs/agent-browser/blob/main/skills/agent-browser/SKILL.md) or similar to take screenshots). Ideally, you include before and after screenshots.
 
-Questions? Just ask in #dev — we're happy to help.
+Questions? Open an issue on [GitHub](https://github.com/zesthq/bizbox/issues) — we're happy to help.
 
 Happy hacking!

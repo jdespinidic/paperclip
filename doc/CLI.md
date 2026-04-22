@@ -1,6 +1,6 @@
 # CLI Reference
 
-Paperclip CLI now supports both:
+Bizbox CLI now supports both:
 
 - instance setup/diagnostics (`onboard`, `doctor`, `configure`, `env`, `allowed-hostname`)
 - control-plane client operations (issues, approvals, agents, activity, dashboard)
@@ -32,10 +32,12 @@ Mode taxonomy and design intent are documented in `doc/DEPLOYMENT-MODES.md`.
 Current CLI behavior:
 
 - `paperclipai onboard` and `paperclipai configure --section server` set deployment mode in config
+- server onboarding/configure ask for reachability intent and write `server.bind`
+- `paperclipai run --bind <loopback|lan|tailnet>` passes a quickstart bind preset into first-run onboarding when config is missing
 - runtime can override mode with `PAPERCLIP_DEPLOYMENT_MODE`
-- `paperclipai run` and `paperclipai doctor` do not yet expose a direct `--mode` flag
+- `paperclipai run` and `paperclipai doctor` still do not expose a direct low-level `--mode` flag
 
-Target behavior (planned) is documented in `doc/DEPLOYMENT-MODES.md` section 5.
+Canonical behavior is documented in `doc/DEPLOYMENT-MODES.md`.
 
 Allow an authenticated/private hostname (for example custom Tailscale DNS):
 
@@ -119,10 +121,10 @@ pnpm paperclipai agent get <agent-id>
 pnpm paperclipai agent local-cli <agent-id-or-shortname> --company-id <company-id>
 ```
 
-`agent local-cli` is the quickest way to run local Claude/Codex manually as a Paperclip agent:
+`agent local-cli` is the quickest way to run local Claude/Codex manually as a Bizbox agent:
 
 - creates a new long-lived agent API key
-- installs missing Paperclip skills into `~/.codex/skills` and `~/.claude/skills`
+- installs missing Bizbox skills into `~/.codex/skills` and `~/.claude/skills`
 - prints `export ...` lines for `PAPERCLIP_API_URL`, `PAPERCLIP_COMPANY_ID`, `PAPERCLIP_AGENT_ID`, and `PAPERCLIP_API_KEY`
 
 Example for shortname-based local setup:
